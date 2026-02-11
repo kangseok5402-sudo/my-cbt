@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>전기공사기사 CBT</title>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
+    <script src="questions.js"></script>
+    <style>
+        .math-render { line-height: 1.6; }
+        .overlay { background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(10px); }
+        .circle-num {
+            display: inline-flex; align-items: center; justify-content: center;
+            width: 34px; height: 34px; border-radius: 50%; border: 2.5px solid;
+            font-weight: bold; margin-right: 12px;
+        }
+        /* 이미지 스크롤용 스타일 */
+        .img-container {
+            max-width: 100%;
+            max-height: 500px;
+            overflow: auto;
+            border: 1px solid #e5e7eb;
+            border-radius: 0.5rem;
+            background-color: white;
+            display: flex;
+            justify-content: center;
+        }
+        .img-container img {
+            max-width: none; /* 원본 크기 유지하여 스크롤 유도 */
+            height: auto;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        function App() {
+            const [authorized, setAuthorized] = useState(false);
+            const [view, setView] = useState('home');
+            const [examQuestions, setExamQuestions] = useState([]);
+            const [currentIndex, setCurrentIndex] = useState(0);
+            const [userAnswers, setUserAnswers] = useState({});
+            const [examHistory, setExamHistory] = useState([]);
+
+            useEffect(() => {
+                const pw = prompt("접속 비밀번호를 입력하세요.");
+                if (pw === "cbt1206") setAuthorized(true);
+                else { alert("비밀번호가 틀렸습니다."); window.location.reload(); }
+                const saved = localStorage.getItem('cbt_history_v3');
+                if (saved) setExamHistory(JSON.parse(saved));
+            }, []);
+
+            useEffect(() => {
+                if (window.katex) {
+                    const elements = document.querySelectorAll('.math-render');
+                    elements.forEach(el => {
+                        const text = el.getAttribute('data-text') || el.innerText;
+                        if (!el.getAttribute('data-text')) el.setAttribute('data-text', text);
+                        try {
+                            if (text.includes('$')) {
+                                el.innerHTML = text.replace(/\$(.*?)\$/g, (m, p1) => katex.renderToString(p1, { throwOnError: false }));
+                            } else if (text.includes('\\')) {
+                                el.innerHTML = katex.renderToString(text, { throwOnError: false });
+                            }
+                        } catch (e) {}
+                    });
+                }
+            }, [view, currentIndex, examQuestions]);
+
+            const startExam = () => {
+                const shuffle = (arr) => [...arr].sort(() => Math.random() - 0.5);
+                
+                const poolA = allQuestions.filter(q => q.type === 'A');
+                const poolB = allQuestions.filter(q => q.type === 'B');
+                const poolC = allQuestions.filter(q => q.type === 'C');
+
+                const countA = Math.min(poolA.length, Math.floor(Math.random() * 3) + 8);
+                const countC = Math.min(poolC.length, Math.floor(Math.random() * 4) + 2);
+                const countB = 20 - countA - countC;
+
+                const selA = shuffle(poolA).slice(0, countA);
+                const selC = shuffle(poolC).slice(0, countC);
+                const selB = shuffle(poolB).slice(0, Math.max(0, countB));
+
+                let final = shuffle([...selA, ...selB, ...selC]).slice(0, 20);
+                if (final.length < 20) {
+                    const extra = shuffle(allQuestions.filter(q => !final.find(f => f.id === q.id))).slice(0, 20 - final.length);
+                    final = [...final, ...extra];
+                }
+
+                const randomized = final.map(q => {
+                    if (q.noShuffle) return { ...q };
+                    const correctText = q.options[q.answer];
+                    const shuffledOpts = shuffle(q.options);
+                    return { ...q, options: shuffledOpts, answer: shuffledOpts.indexOf(correctText) };
+                });
+
+                setExamQuestions(randomized);
+                setUserAnswers({});
+                setCurrentIndex(0);
+                setView('play');
+            };
+
+            const submitExam = () => {
+                const correctCount = examQuestions.reduce((acc, q, idx) => acc + (userAnswers[idx] === q.answer ? 1 : 0), 0);
+                const score = correctCount * 5;
+                const newRecord = { date: new Date().toLocaleString(), score };
+                const updated = [newRecord, ...examHistory];
+                setExamHistory(updated);
+                localStorage.setItem('cbt_history_v3', JSON.stringify(updated));
+                setView('result');
+            };
+
+            if (!authorized) return null;
+
+            if (view === 'home') return (
+                <div class="flex flex-col items-center justify-center min-h-screen gap-6">
+                    <h1 class="text-3xl font-black text-blue-900 mb-4">전기공사기사 CBT</h1>
+                    <button onClick={() => setView('ready')} class="w-80 py-12 bg-blue-600 text-white text-2xl font-bold rounded-2xl shadow-xl hover:bg-blue-700 transition">공사기사 문제풀기</button>
+                    <div class="flex gap-4">
+                        <button class="w-38 px-6 py-6 bg-gray-700 text-white rounded-xl shadow-md font-bold">파트별 공부</button>
+                        <button onClick={() => setView('history')} class="w-38 px-6 py-6 bg-gray-700 text-white rounded-xl shadow-md font-bold">응시 기록</button>
+                    </div>
+                </div>
+            );
+
+            if (view === 'ready') return (
+                <div class="relative min-h-screen flex items-center justify-center overlay">
+                    <div class="bg-white p-12 rounded-3xl shadow-2xl text-center border-4 border-blue-50">
+                        <h2 class="text-2xl font-bold mb-8">응시를 시작하시겠습니까?</h2>
+                        <button onClick={startExam} class="px-16 py-5 bg-black text-white text-xl font-bold rounded-xl hover:bg-gray-800">응시하기</button>
+                    </div>
+                </div>
+            );
+
+            if (view === 'play') {
+                const q = examQuestions[currentIndex];
+                return (
+                    <div class="max-w-3xl mx-auto py-10 px-6">
+                        <div class="bg-white rounded-2xl shadow-lg p-8">
+                            {/* 파트명 숨김: currentIndex만 표시 */}
+                            <div class="text-sm text-gray-400 mb-2 font-bold">문제 {currentIndex + 1} / 20</div>
+                            <div class="math-render text-xl font-bold mb-6" data-text={q.question}>{q.question}</div>
+                            
+                            {/* 이미지 영역: 스크롤 가능하도록 컨테이너 추가 */}
+                            {q.hasImage && (
+                                <div class="img-container mb-8">
+                                    <img src={`images/q${q.id}.png`} alt={`문제 ${q.id} 이미지`} onError={(e) => e.target.style.display='none'} />
+                                </div>
+                            )}
+
+                            <div class="space-y-4">
+                                {q.options.map((opt, i) => (
+                                    <button key={i} onClick={() => setUserAnswers({...userAnswers, [currentIndex]: i})}
+                                        class={`w-full p-5 text-left border-2 rounded-xl transition ${userAnswers[currentIndex] === i ? 'bg-blue-50 border-blue-400' : 'hover:bg-gray-50 border-gray-100'}`}>
+                                        <span class="font-bold mr-3">{i+1}.</span>
+                                        <span class="math-render" data-text={opt}>{opt}</span>
+                                    </button>
+                                ))}
+                            </div>
+                            <div class="flex justify-between mt-12 border-t pt-8">
+                                {currentIndex > 0 && <button onClick={() => setCurrentIndex(currentIndex - 1)} class="px-8 py-3 bg-gray-200 rounded-lg font-bold">이전</button>}
+                                <div class="flex-1"></div>
+                                {currentIndex < 19 ? <button onClick={() => setCurrentIndex(currentIndex + 1)} class="px-8 py-3 bg-blue-600 text-white rounded-lg font-bold">다음</button> :
+                                <button onClick={submitExam} class="px-10 py-3 bg-red-600 text-white rounded-lg font-bold">제출</button>}
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+
+            if (view === 'result') {
+                const score = examQuestions.reduce((acc, q, idx) => acc + (userAnswers[idx] === q.answer ? 5 : 0), 0);
+                const isPass = score >= 70;
+                return (
+                    <div class="max-w-4xl mx-auto py-10 px-6">
+                        <div class={`bg-white rounded-2xl shadow p-10 mb-8 text-center border-t-8 ${isPass ? 'border-green-500' : 'border-red-500'}`}>
+                            <h1 class="text-3xl font-black mb-2"><span class={isPass ? 'text-green-600' : 'text-red-600'}>{score}점</span></h1>
+                            <div class={`text-xl font-bold mb-6 ${isPass ? 'text-green-500' : 'text-red-500'}`}>{isPass ? '합격입니다! 🎉' : '불합격입니다. (70점 기준)'}</div>
+                            <button onClick={() => setView('home')} class="px-8 py-3 bg-black text-white rounded-xl font-bold">홈으로</button>
+                        </div>
+                        <div class="space-y-8">
+                            {examQuestions.map((q, idx) => {
+                                const isCorrect = userAnswers[idx] === q.answer;
+                                return (
+                                    <div key={idx} class={`bg-white rounded-xl shadow p-8 border-l-8 ${isCorrect ? 'border-green-500' : 'border-red-500'}`}>
+                                        <div class="flex items-start mb-6">
+                                            <span class={`circle-num ${isCorrect ? 'border-green-500 text-green-500' : 'border-red-500 text-red-500'}`}>{idx + 1}</span>
+                                            {/* 결과 화면에서는 파트명 표시 */}
+                                            <div class="flex-1">
+                                                <div class="text-xs text-blue-600 font-bold mb-1">[{q.partName}]</div>
+                                                <div class="math-render text-lg font-bold" data-text={q.question}>{q.question}</div>
+                                            </div>
+                                        </div>
+                                        {q.hasImage && <div class="img-container mb-6"><img src={`images/q${q.id}.png`} /></div>}
+                                        <div class="grid gap-2 mb-6">
+                                            {q.options.map((opt, i) => {
+                                                let st = "bg-gray-50 border-gray-100";
+                                                if (i === q.answer) st = "bg-green-100 border-green-500 text-green-800 font-bold";
+                                                else if (i === userAnswers[idx] && !isCorrect) st = "bg-red-100 border-red-500 text-red-800";
+                                                return <div key={i} class={`p-4 border-2 rounded-lg ${st}`}><span class="math-render" data-text={`${i+1}. ${opt}`}>{i+1}. {opt}</span></div>;
+                                            })}
+                                        </div>
+                                        <div class="bg-blue-50 p-6 rounded-xl text-blue-800 border border-blue-100">
+                                            <div class="font-bold mb-1 text-blue-900">해설</div>
+                                            <div class="math-render text-sm" data-text={q.explanation}>{q.explanation}</div>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+                );
+            }
+
+            if (view === 'history') return (
+                <div class="max-w-lg mx-auto py-20 px-6">
+                    <div class="bg-white rounded-2xl shadow p-8 text-center">
+                        <h2 class="text-2xl font-bold mb-6 border-b pb-4">응시 내역</h2>
+                        {examHistory.length === 0 ? <p class="text-gray-400 py-10">기록이 없습니다.</p> : 
+                            examHistory.map((rec, i) => (
+                                <div key={i} class="flex justify-between items-center p-4 border-b">
+                                    <span class="text-sm text-gray-400">{rec.date}</span>
+                                    <span class={`font-bold ${rec.score >= 70 ? 'text-green-600' : 'text-red-600'}`}>{rec.score}점</span>
+                                </div>
+                            ))
+                        }
+                        <button onClick={() => setView('home')} class="mt-8 w-full py-4 bg-gray-800 text-white rounded-xl font-bold">홈으로</button>
+                    </div>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
