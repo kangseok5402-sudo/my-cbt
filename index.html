@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="ko">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -12,13 +13,27 @@
     <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
     <script src="questions.js"></script>
     <style>
-        .math-render { line-height: 1.6; }
-        .overlay { background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(10px); }
-        .circle-num {
-            display: inline-flex; align-items: center; justify-content: center;
-            width: 34px; height: 34px; border-radius: 50%; border: 2.5px solid;
-            font-weight: bold; margin-right: 12px;
+        .math-render {
+            line-height: 1.6;
         }
+
+        .overlay {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(10px);
+        }
+
+        .circle-num {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            border: 2.5px solid;
+            font-weight: bold;
+            margin-right: 12px;
+        }
+
         /* 이미지 스크롤용 스타일 */
         .img-container {
             max-width: 100%;
@@ -30,12 +45,15 @@
             display: flex;
             justify-content: center;
         }
+
         .img-container img {
-            max-width: none; /* 원본 크기 유지하여 스크롤 유도 */
+            max-width: none;
+            /* 원본 크기 유지하여 스크롤 유도 */
             height: auto;
         }
     </style>
 </head>
+
 <body class="bg-gray-100 min-h-screen">
     <div id="root"></div>
 
@@ -59,25 +77,40 @@
             }, []);
 
             useEffect(() => {
-                if (window.katex) {
-                    const elements = document.querySelectorAll('.math-render');
-                    elements.forEach(el => {
-                        const text = el.getAttribute('data-text') || el.innerText;
-                        if (!el.getAttribute('data-text')) el.setAttribute('data-text', text);
-                        try {
-                            if (text.includes('$')) {
-                                el.innerHTML = text.replace(/\$(.*?)\$/g, (m, p1) => katex.renderToString(p1, { throwOnError: false }));
-                            } else if (text.includes('\\')) {
-                                el.innerHTML = katex.renderToString(text, { throwOnError: false });
+                const renderMath = () => {
+                    if (window.katex) {
+                        const elements = document.querySelectorAll('.math-render');
+                        elements.forEach(el => {
+                            // 원본 텍스트 보관을 위해 data-text 속성 활용
+                            let text = el.getAttribute('data-text') || el.innerText;
+                            if (!el.getAttribute('data-text')) el.setAttribute('data-text', text);
+
+                            try {
+                                // 1. $ 기호가 있는 경우
+                                if (text.includes('$')) {
+                                    el.innerHTML = text.replace(/\$(.*?)\$/g, (m, p1) =>
+                                        katex.renderToString(p1, { throwOnError: false }));
+                                }
+                                // 2. $는 없지만 역슬래시(\)가 있는 경우 강제 렌더링
+                                else if (text.includes('\\')) {
+                                    el.innerHTML = katex.renderToString(text, { throwOnError: false });
+                                }
+                            } catch (e) {
+                                console.error("KaTeX Error:", e);
                             }
-                        } catch (e) {}
-                    });
-                }
-            }, [view, currentIndex, examQuestions]);
+                        });
+                    } else {
+                        // KaTeX가 아직 로드되지 않았다면 0.2초 뒤에 다시 시도
+                        setTimeout(renderMath, 200);
+                    }
+                };
+
+                renderMath();
+            }, [view, currentIndex, examQuestions]); // 데이터나 화면이 바뀔 때마다 실행
 
             const startExam = () => {
                 const shuffle = (arr) => [...arr].sort(() => Math.random() - 0.5);
-                
+
                 const poolA = allQuestions.filter(q => q.type === 'A');
                 const poolB = allQuestions.filter(q => q.type === 'B');
                 const poolC = allQuestions.filter(q => q.type === 'C');
@@ -149,19 +182,19 @@
                             {/* 파트명 숨김: currentIndex만 표시 */}
                             <div class="text-sm text-gray-400 mb-2 font-bold">문제 {currentIndex + 1} / 20</div>
                             <div class="math-render text-xl font-bold mb-6" data-text={q.question}>{q.question}</div>
-                            
+
                             {/* 이미지 영역: 스크롤 가능하도록 컨테이너 추가 */}
                             {q.hasImage && (
                                 <div class="img-container mb-8">
-                                    <img src={`images/q${q.id}.png`} alt={`문제 ${q.id} 이미지`} onError={(e) => e.target.style.display='none'} />
+                                    <img src={`images/q${q.id}.png`} alt={`문제 ${q.id} 이미지`} onError={(e) => e.target.style.display = 'none'} />
                                 </div>
                             )}
 
                             <div class="space-y-4">
                                 {q.options.map((opt, i) => (
-                                    <button key={i} onClick={() => setUserAnswers({...userAnswers, [currentIndex]: i})}
+                                    <button key={i} onClick={() => setUserAnswers({ ...userAnswers, [currentIndex]: i })}
                                         class={`w-full p-5 text-left border-2 rounded-xl transition ${userAnswers[currentIndex] === i ? 'bg-blue-50 border-blue-400' : 'hover:bg-gray-50 border-gray-100'}`}>
-                                        <span class="font-bold mr-3">{i+1}.</span>
+                                        <span class="font-bold mr-3">{i + 1}.</span>
                                         <span class="math-render" data-text={opt}>{opt}</span>
                                     </button>
                                 ))}
@@ -170,7 +203,7 @@
                                 {currentIndex > 0 && <button onClick={() => setCurrentIndex(currentIndex - 1)} class="px-8 py-3 bg-gray-200 rounded-lg font-bold">이전</button>}
                                 <div class="flex-1"></div>
                                 {currentIndex < 19 ? <button onClick={() => setCurrentIndex(currentIndex + 1)} class="px-8 py-3 bg-blue-600 text-white rounded-lg font-bold">다음</button> :
-                                <button onClick={submitExam} class="px-10 py-3 bg-red-600 text-white rounded-lg font-bold">제출</button>}
+                                    <button onClick={submitExam} class="px-10 py-3 bg-red-600 text-white rounded-lg font-bold">제출</button>}
                             </div>
                         </div>
                     </div>
@@ -206,7 +239,7 @@
                                                 let st = "bg-gray-50 border-gray-100";
                                                 if (i === q.answer) st = "bg-green-100 border-green-500 text-green-800 font-bold";
                                                 else if (i === userAnswers[idx] && !isCorrect) st = "bg-red-100 border-red-500 text-red-800";
-                                                return <div key={i} class={`p-4 border-2 rounded-lg ${st}`}><span class="math-render" data-text={`${i+1}. ${opt}`}>{i+1}. {opt}</span></div>;
+                                                return <div key={i} class={`p-4 border-2 rounded-lg ${st}`}><span class="math-render" data-text={`${i + 1}. ${opt}`}>{i + 1}. {opt}</span></div>;
                                             })}
                                         </div>
                                         <div class="bg-blue-50 p-6 rounded-xl text-blue-800 border border-blue-100">
@@ -225,7 +258,7 @@
                 <div class="max-w-lg mx-auto py-20 px-6">
                     <div class="bg-white rounded-2xl shadow p-8 text-center">
                         <h2 class="text-2xl font-bold mb-6 border-b pb-4">응시 내역</h2>
-                        {examHistory.length === 0 ? <p class="text-gray-400 py-10">기록이 없습니다.</p> : 
+                        {examHistory.length === 0 ? <p class="text-gray-400 py-10">기록이 없습니다.</p> :
                             examHistory.map((rec, i) => (
                                 <div key={i} class="flex justify-between items-center p-4 border-b">
                                     <span class="text-sm text-gray-400">{rec.date}</span>
@@ -243,4 +276,5 @@
         root.render(<App />);
     </script>
 </body>
+
 </html>
