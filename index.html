@@ -70,43 +70,47 @@
 
             useEffect(() => {
                 const pw = prompt("접속 비밀번호를 입력하세요.");
-                if (pw === "cbt1206") setAuthorized(true);
+                if (pw === "12345") setAuthorized(true);
                 else { alert("비밀번호가 틀렸습니다."); window.location.reload(); }
                 const saved = localStorage.getItem('cbt_history_v3');
                 if (saved) setExamHistory(JSON.parse(saved));
             }, []);
 
+            // index.html 내의 useEffect 부분을 이 코드로 교체
             useEffect(() => {
                 const renderMath = () => {
                     if (window.katex) {
+                        // math-render 클래스가 있는 모든 곳을 찾음
                         const elements = document.querySelectorAll('.math-render');
                         elements.forEach(el => {
-                            // 원본 텍스트 보관을 위해 data-text 속성 활용
+                            // 원본 텍스트를 data-text 속성에 안전하게 보관
                             let text = el.getAttribute('data-text') || el.innerText;
                             if (!el.getAttribute('data-text')) el.setAttribute('data-text', text);
 
                             try {
-                                // 1. $ 기호가 있는 경우
-                                if (text.includes('$')) {
-                                    el.innerHTML = text.replace(/\$(.*?)\$/g, (m, p1) =>
-                                        katex.renderToString(p1, { throwOnError: false }));
-                                }
-                                // 2. $는 없지만 역슬래시(\)가 있는 경우 강제 렌더링
-                                else if (text.includes('\\')) {
-                                    el.innerHTML = katex.renderToString(text, { throwOnError: false });
+                                // 수식 기호가 하나라도 있으면 실행
+                                if (text.includes('$') || text.includes('\\')) {
+                                    // $ 기호가 있으면 제거하고 렌더링, 없으면 통째로 렌더링
+                                    const cleanText = text.replace(/\$/g, '');
+                                    el.innerHTML = katex.renderToString(cleanText, {
+                                        throwOnError: false,
+                                        strict: false
+                                    });
                                 }
                             } catch (e) {
-                                console.error("KaTeX Error:", e);
+                                console.error("수식 오류:", e);
                             }
                         });
                     } else {
-                        // KaTeX가 아직 로드되지 않았다면 0.2초 뒤에 다시 시도
-                        setTimeout(renderMath, 200);
+                        // KaTeX 라이브러리가 아직 안 왔으면 0.1초 뒤에 재시도
+                        setTimeout(renderMath, 100);
                     }
                 };
 
-                renderMath();
-            }, [view, currentIndex, examQuestions]); // 데이터나 화면이 바뀔 때마다 실행
+                // 0.1초 정도 여유를 두고 실행 (React 렌더링 속도에 맞춤)
+                const timer = setTimeout(renderMath, 100);
+                return () => clearTimeout(timer);
+            }, [view, currentIndex, examQuestions]);
 
             const startExam = () => {
                 const shuffle = (arr) => [...arr].sort(() => Math.random() - 0.5);
