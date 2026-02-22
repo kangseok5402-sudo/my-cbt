@@ -26,8 +26,8 @@
         }
         .img-container img { max-width: 100%; height: auto; display: block; }
         .timer-badge { background: #fee2e2; color: #ef4444; border: 1px solid #fecaca; }
-        .pill-btn { transition: all 0.2s; border: 2px solid transparent; }
-        .pill-btn:hover { transform: translateY(-2px); }
+        .part-pill { width: 100%; max-width: 500px; display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.5rem; margin-bottom: 0.5rem; background: white; border: 2px solid #ecfdf5; border-radius: 9999px; font-weight: bold; color: #065f46; transition: all 0.2s; }
+        .part-pill:hover { background: #f0fdf4; border-color: #10b981; transform: translateX(5px); }
     </style>
 </head>
 <body class="bg-gray-100 min-h-screen">
@@ -38,28 +38,38 @@
 
         function App() {
             const [authorized, setAuthorized] = useState(false);
-            const [view, setView] = useState('home'); // home, ready, play, result, history, partSelect, typeSelect, typeCountSelect
+            const [view, setView] = useState('home'); 
             const [examQuestions, setExamQuestions] = useState([]);
             const [currentIndex, setCurrentIndex] = useState(0);
             const [userAnswers, setUserAnswers] = useState({});
             const [examHistory, setExamHistory] = useState([]);
             
-            // 모드 제어
             const [mode, setMode] = useState('exam'); // exam, part, type
             const [selectedType, setSelectedType] = useState('');
-
-            // --- 타이머 관련 상태 ---
             const [timeLeft, setTimeLeft] = useState(1800); 
             const [timerActive, setTimerActive] = useState(false);
             const [finalTimeTaken, setFinalTimeTaken] = useState(0);
 
-            const parts = ['측광', '광원 및 조명설계', '전열', '전동기', '전기철도', '전기화학', '자동제어 및 반도체 응용', '공사재료', '분배전반', '배전선공사', '피뢰설비'];
+            // 파트별 문항 수 정보
+            const partInfo = [
+                { name: '공사재료', count: 75 },
+                { name: '광원 및 조명설계', count: 45 },
+                { name: '전열', count: 45 },
+                { name: '전기화학', count: 43 },
+                { name: '배전선공사', count: 40 },
+                { name: '분배전반', count: 34 },
+                { name: '피뢰설비', count: 34 },
+                { name: '자동제어 및 반도체 응용', count: 32 },
+                { name: '전동기', count: 26 },
+                { name: '전기철도', count: 24 },
+                { name: '측광', count: 5 }
+            ];
 
             useEffect(() => {
                 const pw = prompt("접속 비밀번호를 입력하세요.");
                 if (pw === "1234") setAuthorized(true);
                 else { alert("비밀번호가 틀렸습니다."); window.location.reload(); }
-                const saved = localStorage.getItem('cbt_history_v5');
+                const saved = localStorage.getItem('cbt_history_v6');
                 if (saved) setExamHistory(JSON.parse(saved));
             }, []);
 
@@ -67,9 +77,7 @@
                 let timer = null;
                 if (timerActive && timeLeft > 0) {
                     timer = setInterval(() => { setTimeLeft(prev => prev - 1); }, 1000);
-                } else if (timeLeft === 0 && timerActive) {
-                    submitExam(); 
-                }
+                } else if (timeLeft === 0 && timerActive) { submitExam(); }
                 return () => clearInterval(timer);
             }, [timerActive, timeLeft]);
 
@@ -101,7 +109,6 @@
 
             const shuffle = (arr) => [...arr].sort(() => Math.random() - 0.5);
 
-            // 1. 기존 응시하기 (20문제 랜덤 + 타이머)
             const startStandardExam = () => {
                 setMode('exam');
                 const poolA = allQuestions.filter(q => q.type === 'A');
@@ -110,22 +117,18 @@
                 const countA = Math.min(poolA.length, Math.floor(Math.random() * 3) + 8);
                 const countC = Math.min(poolC.length, Math.floor(Math.random() * 4) + 2);
                 const countB = 20 - countA - countC;
-
                 const selA = shuffle(poolA).slice(0, countA);
                 const selC = shuffle(poolC).slice(0, countC);
                 const selB = shuffle(poolB).slice(0, Math.max(0, countB));
-
                 prepareQuestions([...selA, ...selB, ...selC].slice(0, 20), true);
             };
 
-            // 2. 파트별 공부 시작
             const startPartStudy = (partName) => {
                 setMode('part');
                 const partQuestions = allQuestions.filter(q => q.partName === partName);
                 prepareQuestions(partQuestions, false);
             };
 
-            // 3. 유형별 공부 시작
             const startTypeStudy = (type, count) => {
                 setMode('type');
                 const typePool = allQuestions.filter(q => q.type === type);
@@ -143,12 +146,7 @@
                 setExamQuestions(randomized);
                 setUserAnswers({});
                 setCurrentIndex(0);
-                if (useTimer) {
-                    setTimeLeft(1800);
-                    setTimerActive(true);
-                } else {
-                    setTimerActive(false);
-                }
+                if (useTimer) { setTimeLeft(1800); setTimerActive(true); } else { setTimerActive(false); }
                 setView('play');
             };
 
@@ -156,29 +154,27 @@
                 setTimerActive(false);
                 const timeTaken = mode === 'exam' ? 1800 - timeLeft : 0;
                 setFinalTimeTaken(timeTaken);
-
                 const correctCount = examQuestions.reduce((acc, q, idx) => acc + (userAnswers[idx] === q.answer ? 1 : 0), 0);
-                const score = Math.round((correctCount / examQuestions.length) * 100);
+                const score = mode === 'exam' ? correctCount * 5 : 0;
                 
-                if (mode === 'exam') {
-                    const newRecord = {
-                        id: Date.now(),
-                        date: new Date().toLocaleString(),
-                        score,
-                        questions: examQuestions,
-                        answers: userAnswers,
-                        timeTaken: timeTaken
-                    };
-                    const updated = [newRecord, ...examHistory];
-                    setExamHistory(updated);
-                    localStorage.setItem('cbt_history_v5', JSON.stringify(updated));
-                }
+                const newRecord = {
+                    id: Date.now(),
+                    date: new Date().toLocaleString(),
+                    score,
+                    correctCount,
+                    totalCount: examQuestions.length,
+                    mode,
+                    questions: examQuestions,
+                    answers: userAnswers,
+                    timeTaken: timeTaken
+                };
+                const updated = [newRecord, ...examHistory];
+                setExamHistory(updated);
+                localStorage.setItem('cbt_history_v6', JSON.stringify(updated));
                 setView('result');
             };
 
             if (!authorized) return null;
-
-            // --- Views ---
 
             if (view === 'home') return (
                 <div class="flex flex-col items-center justify-center min-h-screen gap-6 p-6">
@@ -193,22 +189,23 @@
             );
 
             if (view === 'partSelect') return (
-                <div class="max-w-2xl mx-auto py-16 px-6">
-                    <h2 class="text-2xl font-bold mb-8 text-center text-gray-800">공부할 파트를 선택하세요</h2>
-                    <div class="flex flex-wrap justify-center gap-3">
-                        {parts.map(p => (
-                            <button key={p} onClick={() => startPartStudy(p)} class="pill-btn px-6 py-3 bg-white border-2 border-emerald-100 text-emerald-700 rounded-full font-bold hover:bg-emerald-50 hover:border-emerald-300">
-                                {p}
+                <div class="max-w-xl mx-auto py-12 px-6">
+                    <h2 class="text-2xl font-bold mb-8 text-center text-gray-800">파트별 공부하기</h2>
+                    <div class="flex flex-col items-center">
+                        {partInfo.map(p => (
+                            <button key={p.name} onClick={() => startPartStudy(p.name)} class="part-pill">
+                                <span>{p.name}</span>
+                                <span class="text-xs text-emerald-500 font-normal">문항 수 : {p.count} 문항</span>
                             </button>
                         ))}
                     </div>
-                    <button onClick={() => setView('home')} class="mt-12 w-full py-4 text-gray-400 font-bold">홈으로 돌아가기</button>
+                    <button onClick={() => setView('home')} class="mt-8 w-full py-4 text-gray-400 font-bold hover:text-gray-600 transition">홈으로 돌아가기</button>
                 </div>
             );
 
             if (view === 'typeSelect') return (
                 <div class="max-w-md mx-auto py-20 px-6">
-                    <h2 class="text-2xl font-bold mb-10 text-center">학습할 유형 선택</h2>
+                    <h2 class="text-2xl font-bold mb-10 text-center">유형별 공부하기</h2>
                     <div class="space-y-4">
                         {['A', 'B', 'C'].map(t => (
                             <button key={t} onClick={() => { setSelectedType(t); setView('typeCountSelect'); }} 
@@ -224,13 +221,14 @@
             if (view === 'typeCountSelect') return (
                 <div class="max-w-md mx-auto py-20 px-6 text-center">
                     <h2 class="text-xl font-bold mb-2">유형: <span class="text-orange-600 text-2xl">{selectedType}</span></h2>
-                    <p class="text-gray-400 mb-10">몇 문제를 푸시겠습니까?</p>
+                    <p class="text-gray-400 mb-10">몇 문항을 공부하시겠습니까?</p>
                     <div class="grid grid-cols-2 gap-4">
                         {[20, 40, 60].map(c => (
-                            <button key={c} onClick={() => startTypeStudy(selectedType, c)} class="py-5 bg-white border-2 border-gray-100 rounded-xl font-bold hover:border-orange-400">{c}문제 응시</button>
+                            <button key={c} onClick={() => startTypeStudy(selectedType, c)} class="py-5 bg-white border-2 border-gray-100 rounded-xl font-bold hover:border-orange-400">{c}문항</button>
                         ))}
-                        <button onClick={() => startTypeStudy(selectedType, 'all')} class="col-span-2 py-5 bg-orange-500 text-white rounded-xl font-bold shadow-lg">전체 문항 응시</button>
+                        <button onClick={() => startTypeStudy(selectedType, 'all')} class="col-span-2 py-5 bg-orange-500 text-white rounded-xl font-bold shadow-lg">전체 문항</button>
                     </div>
+                    <button onClick={() => setView('typeSelect')} class="mt-8 w-full py-4 text-gray-400 text-sm">유형 다시 선택</button>
                 </div>
             );
 
@@ -250,7 +248,7 @@
                 return (
                     <div class="max-w-3xl mx-auto py-6 px-4">
                         <div class="flex justify-between items-center mb-6 bg-white p-4 rounded-xl shadow-sm sticky top-2 z-50">
-                            <span class="font-bold text-gray-400 text-sm">{mode === 'exam' ? '시험 모드' : '공부 모드'} | {currentIndex + 1} / {examQuestions.length}</span>
+                            <span class="font-bold text-gray-400 text-sm">{mode === 'exam' ? '시험' : '공부'} 모드 | {currentIndex + 1} / {examQuestions.length}</span>
                             {mode === 'exam' && (
                                 <span class={`px-4 py-1 rounded-full font-mono font-bold text-lg timer-badge`}>
                                     {formatTime(timeLeft)}
@@ -288,14 +286,20 @@
 
             if (view === 'result') {
                 const correctCount = examQuestions.reduce((acc, q, idx) => acc + (userAnswers[idx] === q.answer ? 1 : 0), 0);
-                const score = Math.round((correctCount / examQuestions.length) * 100);
+                const score = mode === 'exam' ? Math.round((correctCount / examQuestions.length) * 100) : 0;
                 const isPass = score >= 70;
                 return (
                     <div class="max-w-4xl mx-auto py-10 px-4">
-                        <div class={`bg-white rounded-2xl shadow p-10 mb-8 text-center border-t-8 ${isPass ? 'border-green-500' : 'border-red-500'}`}>
-                            <h1 class="text-4xl font-black mb-2"><span class={isPass ? 'text-green-600' : 'text-red-600'}>{score}점</span></h1>
+                        <div class={`bg-white rounded-2xl shadow p-10 mb-8 text-center border-t-8 ${mode === 'exam' ? (isPass ? 'border-green-500' : 'border-red-500') : 'border-blue-500'}`}>
+                            {mode === 'exam' ? (
+                                <h1 class="text-4xl font-black mb-2"><span class={isPass ? 'text-green-600' : 'text-red-600'}>{score}점</span></h1>
+                            ) : (
+                                <h1 class="text-3xl font-black mb-2 text-blue-800">채점 결과 : {correctCount} / {examQuestions.length}</h1>
+                            )}
                             {mode === 'exam' && <div class="text-gray-500 font-bold mb-4 italic text-sm">소요 시간: {formatTime(finalTimeTaken)}</div>}
-                            <div class={`text-xl font-bold mb-8 ${isPass ? 'text-green-500' : 'text-red-500'}`}>{isPass ? '합격입니다! 🎉' : '불합격입니다. (70점 기준)'}</div>
+                            <div class={`text-xl font-bold mb-8 ${mode === 'exam' ? (isPass ? 'text-green-500' : 'text-red-500') : 'text-blue-500'}`}>
+                                {mode === 'exam' ? (isPass ? '합격입니다! 🎉' : '불합격입니다. (70점 기준)') : '고생하셨습니다! 오답을 확인해보세요.'}
+                            </div>
                             <button onClick={() => setView('home')} class="px-10 py-3 bg-black text-white rounded-xl font-bold">홈으로 돌아가기</button>
                         </div>
                         <div class="space-y-8">
@@ -334,24 +338,28 @@
             if (view === 'history') return (
                 <div class="max-w-2xl mx-auto py-10 px-4">
                     <div class="bg-white rounded-2xl shadow p-8">
-                        <h2 class="text-2xl font-bold mb-8 border-b pb-4 text-center">정규 시험 기록</h2>
+                        <h2 class="text-2xl font-bold mb-8 border-b pb-4 text-center">전체 학습 및 응시 기록</h2>
                         {examHistory.length === 0 ? <p class="text-gray-400 py-20 text-center">기록이 없습니다.</p> : 
                             <div class="space-y-6">
                                 {examHistory.map((rec, i) => (
                                     <div key={rec.id} class="p-5 border-2 rounded-2xl bg-gray-50">
                                         <div class="flex justify-between items-start mb-4">
                                             <div>
-                                                <div class="text-xs text-gray-400 mb-1">{rec.date}</div>
-                                                <div class={`text-2xl font-black ${rec.score >= 70 ? 'text-green-600' : 'text-red-600'}`}>{rec.score}점</div>
-                                                <div class="text-xs font-bold text-gray-500 mt-1 italic">시간: {formatTime(rec.timeTaken)}</div>
+                                                <div class="text-xs text-gray-400 mb-1">{rec.date} <span class="bg-gray-200 text-gray-600 px-2 py-0.5 rounded ml-2 font-bold">{rec.mode === 'exam' ? '정기시험' : (rec.mode === 'part' ? '파트공부' : '유형공부')}</span></div>
+                                                <div class={`text-2xl font-black ${rec.mode === 'exam' ? (rec.score >= 70 ? 'text-green-600' : 'text-red-600') : 'text-blue-700'}`}>
+                                                    {rec.mode === 'exam' ? `${rec.score}점` : `${rec.correctCount} / ${rec.totalCount}`}
+                                                </div>
+                                                {rec.mode === 'exam' && <div class="text-xs font-bold text-gray-500 mt-1 italic">시간: {formatTime(rec.timeTaken)}</div>}
                                             </div>
-                                            <div class={`px-3 py-1 rounded-full text-xs font-bold ${rec.score >= 70 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                                                {rec.score >= 70 ? '합격' : '불합격'}
-                                            </div>
+                                            {rec.mode === 'exam' && (
+                                                <div class={`px-3 py-1 rounded-full text-xs font-bold ${rec.score >= 70 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                                    {rec.score >= 70 ? '합격' : '불합격'}
+                                                </div>
+                                            )}
                                         </div>
                                         <div class="flex gap-2">
-                                            <button onClick={() => { setMode('exam'); setExamQuestions(rec.questions); setUserAnswers(rec.answers); setFinalTimeTaken(rec.timeTaken); setView('result'); }} class="flex-1 py-3 bg-white border border-gray-300 rounded-lg font-bold text-xs">결과보기</button>
-                                            <button onClick={() => { setMode('exam'); setExamQuestions(rec.questions); setUserAnswers({}); setCurrentIndex(0); setTimeLeft(1800); setTimerActive(true); setView('play'); }} class="flex-1 py-3 bg-blue-600 text-white rounded-lg font-bold text-xs">재응시</button>
+                                            <button onClick={() => { setMode(rec.mode); setExamQuestions(rec.questions); setUserAnswers(rec.answers); setFinalTimeTaken(rec.timeTaken || 0); setView('result'); }} class="flex-1 py-3 bg-white border border-gray-300 rounded-lg font-bold text-xs">결과보기</button>
+                                            <button onClick={() => { setMode(rec.mode); setExamQuestions(rec.questions); setUserAnswers({}); setCurrentIndex(0); setTimeLeft(1800); setTimerActive(rec.mode === 'exam'); setView('play'); }} class="flex-1 py-3 bg-blue-600 text-white rounded-lg font-bold text-xs">재응시</button>
                                         </div>
                                     </div>
                                 ))}
