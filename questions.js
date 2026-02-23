@@ -5179,7 +5179,7 @@ const allQuestions = [
             "10",
             "20"
         ],
-        "answer": 1,
+        "answer": 2,
         "noShuffle": false,
         "hasImage": false,
         "explanation": "전선 굵기 95mm^2 이하는 덕트 폭 10cm"
@@ -5463,7 +5463,7 @@ const allQuestions = [
         "type": "C",
         "question": "COS 컷아웃 스위치를 설치할 때 사용되는 부속 재료가 아닌것은",
         "options": [
-            "내장 크램프",
+            "내장 클램프",
             "브라켓",
             "내오손용 결합애자",
             "퓨즈링크"
