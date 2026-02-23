@@ -40,7 +40,7 @@ const allQuestions = [
         "type": "A",
         "question": "완전 확산면의 휘도(B)와 광속발산도(R)의 관계식은?",
         "options": [
-            "R=4piB",
+            "R=4\\pi B",
             "R=2\\pi B",
             "R=\\pi B",
             "R=\\pi^2 B"
@@ -2384,12 +2384,12 @@ const allQuestions = [
         "part": 5,
         "partName": "전기철도",
         "type": "B",
-        "question": "열처저항에 대한 설명 중 옳지 않은 것은?",
+        "question": "열차저항에 대한 설명 중 옳지 않은 것은?",
         "options": [
             "주행 저항은 베어링 부분의 기계적 마찰, 공기저항 등으로 이루어진다.",
             "열차가 곡선구간을 주행할 때 곡선의 반지름에 비례하여 받는 저항을 곡선저항이라 한다.",
             "경사궤도를 운전 시 중력에 의해 발생하는 저항을 구배저항이라 한다.",
-            ""
+            "열차 가속 시 발생하는 저항을 가속저항이라 한다."
         ],
         "answer": 1,
         "noShuffle": false,
@@ -3277,7 +3277,7 @@ const allQuestions = [
         ],
         "answer": 2,
         "noShuffle": false,
-        "hasImage": false,
+        "hasImage": true,
         "explanation": "SCR : 애노드(A), 캐소드(K), 게이트(G)를 갖는 역저지 3단자 사이리스터이다."
     },
     {
@@ -5942,7 +5942,7 @@ const allQuestions = [
             "암타이 밴드",
             "완금 밴드",
             "경완금",
-            "인입금 완금"
+            "인입용 완금"
         ],
         "answer": 3,
         "noShuffle": false,
