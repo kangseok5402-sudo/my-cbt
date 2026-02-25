@@ -6063,7 +6063,7 @@ const allQuestions = [
             "인장클램프",
             "각암타이"
         ],
-        "answer": 1,
+        "answer": 0,
         "noShuffle": false,
         "hasImage": false,
         "explanation": "경완철- 아이쇄클(볼쇄클+소켓아이)- 폴리머애자-인장클램프"
